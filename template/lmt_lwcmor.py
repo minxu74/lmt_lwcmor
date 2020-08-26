@@ -13,13 +13,18 @@ from shutil import copyfile
 
 from mpi4py import MPI
 
+import glob
 
 def parse_rela(relastr):
+    '''
+       parse the relationship string and save the dimensions of variables
+       to a dictionary and the relationship string only containing the 
+       variables and operators
+    '''
 
     import re
     
     #teststr="aaa(1)*bbb(0:10)"
-    
     
     if '(' in relastr:
     
@@ -45,39 +50,55 @@ def parse_rela(relastr):
        return {}, relastr
 
 
-def assign_varattrs(ncdf_var, var_name, cmorlist, mvarlist):
+def assign_varattrs(ncdf_var, VarMap):
 
     
     # hard-coded
-    ncdf_var.setncattr('time'          ,  'time')
-    ncdf_var.setncattr('time_label'    ,  'time-mean')
-    ncdf_var.setncattr('time_title'    ,  'Temporal mean')
-    ncdf_var.setncattr('cell_measures' ,  'area: areacella') 
-    ncdf_var.setncattr('cell_methods'  ,  'area: mean where land time: mean') 
+
+    ncdf_var.setncattr('time'          ,  VarMap["attributes"]["time"])
+    ncdf_var.setncattr('time_label'    ,  VarMap["attributes"]["time_label"])
+    ncdf_var.setncattr('time_title'    ,  VarMap["attributes"]["time_title"])
+    ncdf_var.setncattr('cell_measures' ,  VarMap["attributes"]["cell_measures"]) 
+    ncdf_var.setncattr('cell_methods'  ,  VarMap["attributes"]["cell_methods"]) 
 
 
 
     # from data requestion python API
-    ncdf_var.setncattr('description'   ,  mvarlist[var_name].description) 
-    ncdf_var.setncattr('comment'       ,  mvarlist[var_name].description)
-    ncdf_var.setncattr('standard_name' ,  mvarlist[var_name].sn)
-    ncdf_var.setncattr('long_name'     ,  mvarlist[var_name].title)
-    ncdf_var.setncattr('title'         ,  mvarlist[var_name].title)
-    ncdf_var.setncattr('id'            ,  mvarlist[var_name].label)
-    ncdf_var.setncattr('variable_id'   ,  mvarlist[var_name].label)
-    ncdf_var.setncattr('frequency'     ,  cmorlist[var_name].__dict__['frequency'])
-    ncdf_var.setncattr('positive'      ,  cmorlist[var_name].__dict__['positive'])
-    ncdf_var.setncattr('modeling_realm',  cmorlist[var_name].__dict__['modeling_realm'])
-    ncdf_var.setncattr('type'          ,  cmorlist[var_name].__dict__['type'])
-    ncdf_var.setncattr('prov'          ,  cmorlist[var_name].__dict__['prov'])
-    ncdf_var.setncattr('mipTable'      ,  cmorlist[var_name].mipTable)
+    ncdf_var.setncattr('description'   ,  VarMap["attributes"]["description"]) 
+    ncdf_var.setncattr('comment'       ,  VarMap["attributes"]["comment"])
+    ncdf_var.setncattr('standard_name' ,  VarMap["attributes"]["standard_name"])
+    ncdf_var.setncattr('long_name'     ,  VarMap["attributes"]["long_name"])
+    ncdf_var.setncattr('title'         ,  VarMap["attributes"]["long_name"])
+    ncdf_var.setncattr('id'            ,  VarMap["attributes"]["id"])
+    ncdf_var.setncattr('variable_id'   ,  VarMap["attributes"]["variable_id"])
+    ncdf_var.setncattr('frequency'     ,  VarMap["attributes"]["frequency"])
+    ncdf_var.setncattr('positive'      ,  VarMap["attributes"]["positive"])
+    ncdf_var.setncattr('modeling_realm',  VarMap["attributes"]["modeling_realm"])
+    ncdf_var.setncattr('type'          ,  VarMap["attributes"]["type"])
+    ncdf_var.setncattr('prov'          ,  VarMap["attributes"]["prov"])
+    ncdf_var.setncattr('mipTable'      ,  VarMap["attributes"]["miptable"])
+    ncdf_var.setncattr('positive'      ,  VarMap["attributes"]["positive"])
+    ncdf_var.setncattr('units'         ,  VarMap["attributes"]["units"])
+
+    if ncdf_var.dtype == np.single: 
+        ncdf_var.setncattr('_FillValue'    , np.float32(1.e20))
+        ncdf_var.setncattr('missing_value' , np.float32(1.e20))
+    elif ncdf_var.dtype == np.double:
+        ncdf_var.setncattr('_FillValue'    , np.float64(1.e20))
+        ncdf_var.setncattr('missing_value' , np.float64(1.e20))
+
+    elif ncdf_var.dtype == np.int16:
+        ncdf_var.setncattr('_FillValue'    , np.int16(-9999))
+        ncdf_var.setncattr('missing_value' , np.int16(-9999))
+
+
 
     return
 
 
 #mipname #realname
 
-def assign_gblattrs(ncdf_gbl, mip_filt, tab_filt, mod_name, exp_name, ins_name, ens_name):
+def assign_gblattrs(ncdf_gbl, VarMap):
     """
     #x-Conventions xum
     #x-activity_id xum
@@ -114,87 +135,135 @@ def assign_gblattrs(ncdf_gbl, mip_filt, tab_filt, mod_name, exp_name, ins_name, 
     import load_CMIP6CV as cv
     import uuid
 
-    ncdf_gbl.Conventions = "CF-1.7 CMIP-6.2"
-    ncdf_gbl.mip_era = "CMIP6"
-    ncdf_gbl.product = "model-output"
-    ncdf_gbl.further_info_url = "https://www.bgc-feedbacks.org"
+    # input: VarMap
 
-    ncdf_gbl.activity_id    = mip_filt
-    ncdf_gbl.table_id       = tab_filt
-    ncdf_gbl.experiment_id  = exp_name
-    ncdf_gbl.institution_id = ins_name
-    ncdf_gbl.variant_label  = ens_name
+    mipcv = cv.cmip6cv()
 
-    ncdf_gbl.source_id      = mod_name
+    UserInput["experiment_id"        ] = '1pctCO2-bgc'
+    UserInput["institution_id"       ] = 'RUBISCO'
+    UserInput["grid_label"           ] = "gr"
+    UserInput["nominal_resolution"   ] = "100 km"
+    UserInput["further_info_url"     ] = "https://bgc-feedbacks.org"
+    UserInput["creation_date"        ] = "2020-06-11"
+    UserInput["source_component"     ] = ["atmos", "atmosChem", "land", "ocean", "ocnBgchem", "seaIce"]
+    UserInput["source_id"            ] = "E3SM-1-1"
+    UserInput["forcing_index"        ] = 1
+    UserInput["initialization_index" ] = 1
+    UserInput["physics_index"        ] = 1
+    UserInput["realization_index"    ] = 1
+    UserInput["variant_info"         ] = "p = 1, for CTC with CNP"
+    UserInput["branch_method"        ] = "50 yrs spinup on DOE Compy from the 969 yrs piControl spinup on NERSC Edison " \
+                                         "to account for the machine differences"
+    UserInput["branch_time_in_child" ] = 0.0
+    UserInput["branch_time_in_parent"] = 371935.0
+    UserInput["parent_time_units"    ] = "days since 0001-01-01"
+    # user the shell to get
+    myuuid = str(uuid.uuid4())
+    UserInput["tracking_id"          ] = "hdl:21.14100/" + myuuid
 
-    ncdf_gbl.experiment     = cv.dict_exp['experiment_id'][exp_name]['experiment']
-    ncdf_gbl.institution    = cv.dict_ins['institution_id'][ins_name]
-    ncdf_gbl.license        = cv.dict_lic['license'][0].replace('<Your Centre Name>', ins_name).\
-                              replace('<some URL maintained by modeling group>', 'https://www.bgc-feedbacks.org')
+    # from dreq 
+    DreqInput["frequency"            ] = VarMap["attributes"]["frequency"]
+    DreqInput["realm"                ] = VarMap["attributes"]["modeling_realm"]
+    DreqInput["table_id"             ] = VarMap["attributes"]["miptable"]
+    DreqInput["variable_id"          ] = VarMap["cmvar"]
 
+    mipcv.GetGlobalAttributes(UserInput, DreqInput) 
 
-    for frq in cv.dict_frq['frequency'].keys():
-        if frq in tab_id:
-           ncdf_gbl.frequency = frq
-           break
+    # sort ???
+    for gkey in mipcv.ReqGblAttrs.keys():
+        setattr(ncdf_gbl, gkey, ReqGblAttrs[gkey]) 
 
-    nomgrid=[]
-    for nom in cv.dict_nom['nominal_resolution']:
-        if 'degree' in nom.split(' ')[1]:
-           nomgrid.append(110)
-        else:
-           nomgrid.append(float(nom.split(' ')[0]))
-    ncdf_gbl.nominal_resolution = cv.dict_nom['nominal_resolution'][nomgrid.index(min(nomgrid, key=lambda x:abs(x-gridsize)))]
-
-
-    ncdf_gbl.realization_index     = ens_name.split('r')[1].split('i')[0]
-    ncdf_gbl.initialization_index  = ens_name.split('i')[1].split('p')[0]
-    ncdf_gbl.physics_index         = ens_name.split('p')[1].split('f')[0]
-    ncdf_gbl.forcing_index         = ens_name.split('p')[1].split('f')[1]
-
-    ncdf_gbl.sub_experiment = "none"
-    ncdf_gbl.sub_experiment_id = "none"
-    myuuid = str(uuid.uuid1())
-    ncdf_gbl.tracking_id = "hdl:21.14100/" + myuuid
-
-    ncdf_gbl.grid = '0.5x0.5 degree'
-    ncdf_gbl.grid_label = 'gn'
-    ncdf_gbl.realm = "land"
+    for gkey in mipcv.OptGblAttrs.keys():
+        setattr(ncdf_gbl, gkey, OptGblAttrs[gkey])
 
 
 
-    src_str = cv.dict_sid['source_id'][mod_name]['source_id']+': (' +str(dict_sid['source_id'][mod_name]['release_year']) + '): '
-    mykeys = dict_sid['source_id'][mod_name]['model_component'].keys()
-    mykeys.sort()
-
-    for mykey in keys:
-        if dict_sid['source_id'][mod_name]['model_component'][mykey]['description'] != 'none':
-            src_str += mykey + ': ' + dict_sid['source_id'][mod_name]['model_component'][mykey]['description'] + '; '
 
 
-    ncdf_gbl.source = src_str
-    ncdf_gbl.source_id = mod_name
-    ncdf_gbl.source_type = "LAND"
+    #-ncdf_gbl.Conventions = "CF-1.7 CMIP-6.2"
+    #-ncdf_gbl.mip_era = "CMIP6"
+    #-ncdf_gbl.product = "model-output"
+    #-ncdf_gbl.further_info_url = "https://www.bgc-feedbacks.org"
 
-    ncdf_gbl.variable_id = var_name
+    #-ncdf_gbl.activity_id    = mip_filt
+    #-ncdf_gbl.table_id       = tab_filt
+    #-ncdf_gbl.experiment_id  = exp_name
+    #-ncdf_gbl.institution_id = ins_name
+    #-ncdf_gbl.variant_label  = ens_name
 
-    ncdf_gbl.variant_label = "Same land model configuration, including representation of land cover, land use, \
-                              and land management, as used in coupled CMIP6 historical simulation with all applicable land-use features active. \
-                              Shared with LS3MIP and LUMIP"
-    
+    #-ncdf_gbl.source_id      = mod_name
 
-    #options
-    ncdf_gbl.model_doi_url = "http://dx.doi.org/10.11578/E3SM/dc.20180418.36"
-    ncdf_gbl.contact = "forrest@climatemodeling.org"
+    #-ncdf_gbl.experiment     = cv.dict_exp['experiment_id'][exp_name]['experiment']
+    #-ncdf_gbl.institution    = cv.dict_ins['institution_id'][ins_name]
+    #-ncdf_gbl.license        = cv.dict_lic['license'][0].replace('<Your Centre Name>', ins_name).\
+    #-                          replace('<some URL maintained by modeling group>', 'https://www.bgc-feedbacks.org')
 
 
+    #-for frq in cv.dict_frq['frequency'].keys():
+    #-    if frq in tab_id:
+    #-       ncdf_gbl.frequency = frq
+    #-       break
 
-    ncdf_gbl.parent_activity_id = "no parent" ;
-    ncdf_gbl.parent_experiment_id = "no parent" ;
-    ncdf_gbl.parent_mip_era = "no parent" ;
-    ncdf_gbl.parent_source_id = "no parent" ;
-    ncdf_gbl.parent_time_units = "no parent" ;
-    ncdf_gbl.parent_variant_label = "no parent" ;
+    #-nomgrid=[]
+    #-for nom in cv.dict_nom['nominal_resolution']:
+    #-    if 'degree' in nom.split(' ')[1]:
+    #-       nomgrid.append(110)
+    #-    else:
+    #-       nomgrid.append(float(nom.split(' ')[0]))
+    #-ncdf_gbl.nominal_resolution = cv.dict_nom['nominal_resolution'][nomgrid.index(min(nomgrid, key=lambda x:abs(x-gridsize)))]
+
+
+    #-ncdf_gbl.realization_index     = ens_name.split('r')[1].split('i')[0]
+    #-ncdf_gbl.initialization_index  = ens_name.split('i')[1].split('p')[0]
+    #-ncdf_gbl.physics_index         = ens_name.split('p')[1].split('f')[0]
+    #-ncdf_gbl.forcing_index         = ens_name.split('p')[1].split('f')[1]
+
+    #-ncdf_gbl.sub_experiment = "none"
+    #-ncdf_gbl.sub_experiment_id = "none"
+
+
+    #-# user the shell to get
+    #-myuuid = str(uuid.uuid1())
+    #-ncdf_gbl.tracking_id = "hdl:21.14100/" + myuuid
+
+    #-ncdf_gbl.grid = '0.5x0.5 degree'
+    #-ncdf_gbl.grid_label = 'gn'
+    #-ncdf_gbl.realm = "land"
+
+
+
+    #-src_str = cv.dict_sid['source_id'][mod_name]['source_id']+': (' +str(dict_sid['source_id'][mod_name]['release_year']) + '): '
+    #-mykeys = dict_sid['source_id'][mod_name]['model_component'].keys()
+    #-mykeys.sort()
+
+    #-for mykey in keys:
+    #-    if dict_sid['source_id'][mod_name]['model_component'][mykey]['description'] != 'none':
+    #-        src_str += mykey + ': ' + dict_sid['source_id'][mod_name]['model_component'][mykey]['description'] + '; '
+
+
+    #-ncdf_gbl.source = src_str
+    #-ncdf_gbl.source_id = mod_name
+    #-ncdf_gbl.source_type = "LAND"
+
+    #-ncdf_gbl.variable_id = var_name
+
+    #-ncdf_gbl.variant_label = "Same land model configuration, including representation of land cover, land use, \
+    #-                          and land management, as used in coupled CMIP6 historical simulation with all applicable land-use features active. \
+    #-                          Shared with LS3MIP and LUMIP"
+    #-
+
+    #-#options
+    #-ncdf_gbl.model_doi_url = "http://dx.doi.org/10.11578/E3SM/dc.20180418.36"
+    #-ncdf_gbl.contact = "forrest@climatemodeling.org"
+
+
+
+    #-ncdf_gbl.parent_activity_id = "no parent" ;
+    #-ncdf_gbl.parent_experiment_id = "no parent" ;
+    #-ncdf_gbl.parent_mip_era = "no parent" ;
+    #-ncdf_gbl.parent_source_id = "no parent" ;
+    #-ncdf_gbl.parent_time_units = "no parent" ;
+    #-ncdf_gbl.parent_variant_label = "no parent" ;
 
 
     return
@@ -248,13 +317,17 @@ def define_dirlevel(var_name, institid, exp_name, ens_grid, date_ver):
 
     return var_dirn
 
+
+
+
+
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
 
 
 mip_filt='CMIP'
-tab_filt='Amon'
+tab_filt='Lmon'
 
 cmorlist={}
 mvarlist={}
@@ -265,11 +338,17 @@ cmorlist, mvarlist = search_cmorlist(mip_filt, tab_filt)
 print (cmorlist.keys())
 
 
-ens_grid='gn'
-ens_time='000101-015012'
-mod_name='e3sm'
-exp_name='1pctco2'
-ins_name='RUBISCO'
+ens_grid = 'gn'
+ens_time = '000101-015012'
+
+
+
+mod_name = 'E3SM'
+exp_name = '1pctCO2-bgc'
+mip_name = 'C4MIP'
+ins_name = 'RUBISCO'
+tab_name = 'Amon'
+rel_name = 'atmos'
 
 datadir="/global/cscratch1/sd/minxu/data/20191123.CO21PCTRAD_RUBISCO_CNPCTC20TR_OIBGC.I1900.ne30_oECv3.compy/rgr/atm/"
 cmordir="/global/homes/m/minxu/scratch/data/mytest/"
@@ -277,54 +356,28 @@ cmordir="/global/homes/m/minxu/scratch/data/mytest/"
 timeshift=1899
 
 
-cmordicts=[
-        {'cmvar':'evspsbl', 'units': 'kg m-2 s-1', 'longname': 'Evaporation Including Sublimation and transpiration', 'relationship':'QFLX', 'confidence':100,'_children': [
-              {'cmvar':'QFLX', 'longname': 'Surface water flux', 'units':'kg/m2/s'}]},
+if rank == 0:
+    with open("cmorjson/jsonfiles/cmor/{}_{}_{}.json".format(mip_name, tab_name, mod_name)) as rdf:
+        cmor_json = json.load(rdf)
+    cmordicts = [ cm for cm in cmor_json["variables"] if int(cm["confidence"]) >= 90.0 ]
 
-        {'cmvar':'rlds', 'units': 'W m-2', 'longname': 'Surface Downwelling Longwave Radiation', 'relationship':'FLDS', 'confidence':100,'_children': [
-              {'cmvar':'FLDS', 'longname': 'Surface water flux', 'units':'W/m2'}]},
+    
+    # get all variable definitons
 
-        {'cmvar':'rlus', 'units': 'W m-2', 'longname': 'Surface Upwelling Longwave Radiation', 'relationship':'FLDS+FLNS', 'confidence':100,'_children': [
-              {'cmvar':'FLDS', 'longname': 'Surface water flux', 'units':'W/m2'},
-              {'cmvar':'FLNS', 'longname': 'Surface water flux', 'units':'W/m2'}]},
+    for jsnf in glob.glob("cmorjson/jsonfiles/{}/*".format(mod_name.lower())):
+        if "mon" in jsnf and rel_name in jsnf:
+            with open ("cmorjson/jsonfiles/{}/".format(mod_name.lower()) + jsnf) as rdf:
+                 modeljson = json.load(rdf)
+            compdicts = modeljson["variables"]
+else:
+    cmordicts = None
+    compdicts = None
+cmordicts = comm.bcast(cmordicts, root=0)
+compdicts = comm.bcast(cmordicts, root=0)
 
-        {'cmvar':'rsds', 'units': 'W m-2', 'longname': 'Surface Downwelling Shortwave Radiation', 'relationship':'FSDS', 'confidence':100,'_children': [
-              {'cmvar':'FSDS', 'longname': 'Surface water flux', 'units':'W/m2'}]},
-
-        {'cmvar':'rsus', 'units': 'W m-2', 'longname': 'Surface Upwelling Shortwave Radiation', 'relationship':'FSDS-FSNS', 'confidence':100,'_children': [
-              {'cmvar':'FSDS', 'longname': 'Surface water flux', 'units':'W/m2'},
-              {'cmvar':'FSNS', 'longname': 'Surface water flux', 'units':'W/m2'}]},
-
-        {'cmvar':'tas', 'units': 'K', 'longname': 'Near-Surface Air Temperature', 'relationship':'TREFHT', 'confidence':100,'_children': [
-              {'cmvar':'TREFHT', 'longname': 'Surface water flux', 'units':'K'}]},
-
-        {'cmvar':'tasmax', 'units': 'K', 'longname': 'Daily Maximum Near-Surface Air Temperature', 'relationship':'TREFHTMX', 'confidence':100,'_children': [
-              {'cmvar':'TREFHTMX', 'longname': 'Surface water flux', 'units':'K'}]},
-
-        {'cmvar':'tasmin', 'units': 'K', 'longname': 'Daily Minimum Near-Surface Air Temperature', 'relationship':'TREFHTMN', 'confidence':100,'_children': [
-              {'cmvar':'TREFHTMN', 'longname': 'Surface water flux', 'units':'K'}]},
-
-        {'cmvar':'hurs', 'units': '%', 'longname': 'Near-Surface Relative Humidity', 'relationship':'RHREFHT', 'confidence':100,'_children': [
-              {'cmvar':'RHREFHT', 'longname': 'Surface water flux', 'units':'%'}]},
-
-        {'cmvar':'hfls', 'units': 'W m-2', 'longname': 'Surface Upward Latent Heat Flux', 'relationship':'LHFLX', 'confidence':100,'_children': [
-              {'cmvar':'LHFLX', 'longname': 'Surface water flux', 'units':'W/m2'}]},
-
-        {'cmvar':'hfss', 'units': 'W m-2', 'longname': 'Surface Upward Sensible Heat Flux', 'relationship':'SHFLX', 'confidence':100,'_children': [
-              {'cmvar':'SHFLX', 'longname': 'Surface water flux', 'units':'W/m2'}]},
-
-        {'cmvar':'pr', 'units': 'kg m-2 s-1', 'longname': 'precipitation_flux', 'relationship': 'PRECC+PRECL', 'confidence':100,'_children': [
-              {'cmvar': 'PRECC', 'longname': '', 'units': 'g/mm2/s'},
-              {'cmvar': 'PRECL', 'longname': '', 'units': 'g/mm2/s'}]},
-
-          {'cmvar': 'fgco2', 'longname': 'Surface Downward Mass Flux of Carbon as CO2 [kgC m-2 s-1]', 'units': 'kg m-2 s-1', 'relationship': 'SFCO2_OCN', 'confidence': 100, '_children': [
-              {'cmvar':'SFCO2', 'longname': 'CO2 surface flux', 'units':'kg m-2 s-1'}]}]
+sys.exit()
 
 
-
-#parse the json file
-#-with open("LS3MIP_final.json", "r") as rdf:
-#-    cmor_json=json.load(rdf)
 #-
 #-
 #-varsneeded=[]
@@ -345,66 +398,6 @@ cmordicts=[
 #-print (list(set(varsneeded)))
 
 
-#-if rank == 0:
-#-    with open("LS3MIP_checked.json", "r") as rdf:
-#-        cmordicts = json.load(rdf)
-#-    
-#-    
-#-    cmordicts=[{"confidence": "90", "relationship": "PCT_LANDUNIT(0)*PCT_NAT_PFT(0)", "_children": 
-#-             [{"cmvar": "PCT_LANDUNIT", "longname": "% of each landunit on grid cell", "units": "%", "confidence": 100}, 
-#-              {"cmvar": "PCT_NAT_PFT", "longname": "% of each PFT on the natural vegetation (i.e., soil) landunit", "units": "%", "confidence": 100}], 
-#-              "frequency": "mon", "longname": "Bare Soil Percentage Area Coverage", "units": "%", 
-#-               "mip": ["C4MIP", "GMMIP", "VIACSAB", "LUMIP", "CFMIP", "RFMIP", "AerChemMIP", "FAFMIP", "PMIP", "LS3MIP", "CMIP", "VolMIP", "GeoMIP", "HighResMIP"], 
-#-               "cmvar": "baresoilFrac", "id": 57}]
-#-else:
-#-    cmordicts=[]
-#-
-#-comm.barrier()
-#-
-#-comm.Bcast(cmordicts, root=0)
-#-
-#-nseg = max(int(len(cmordicts)/size), 1)
-#-
-#-nbgn = rank * nseg
-#-nend = min(nbgn + nseg, len(cmordicts))
-#-
-#-
-#-print (rank, nbgn, nend)
-#-
-#-for cmordict in cmordicts[nbgn:nend]:
-
-#--with open("LS3MIP_checked.json", "r") as rdf:
-#--    cmordicts = json.load(rdf)
-#--    cmordicts.sort(key=lambda x:x['id'])
-#-cmordicts = [{"confidence": "90", "relationship": "LIVECROOTC+DEADCROOTC", "_children": 
-#-          [{"cmvar": "LIVECROOTC", "longname": "live coarse root C", "units": "gC/m^2", "confidence": 100}, {"cmvar": "DEADCROOTC", "longname": "dead coarse root C", "units": "gC/m^2", "confidence": 100}], 
-#-           "frequency": "mon", "longname": "Carbon Mass in Roots", "units": "kg m-2", "mip": ["C4MIP", "GMMIP", "VIACSAB", "LUMIP", "RFMIP", "AerChemMIP", "FAFMIP", "LS3MIP", "CMIP", "VolMIP", "GeoMIP", "HighResMIP"], 
-#-             "cmvar": "cRoot", "id": 35}, 
-#-              {"confidence": "90", "relationship": "FAREA_BURNED", "_children": 
-#-              [{"cmvar": "FAREA_BURNED", "longname": "timestep fractional area burned", "units": "proportion", "confidence": 100}], 
-#-             "frequency": "mon", "longname": "Percentage of Entire Grid cell  that is Covered by Burnt Vegetation (All Classes)", 
-#-              "units": "%", "mip": ["C4MIP", "GMMIP", "VIACSAB", "LUMIP", "PMIP", "RFMIP", "AerChemMIP", "FAFMIP", "CFMIP", "LS3MIP", "CMIP", "VolMIP", "GeoMIP", "HighResMIP"], "cmvar": "burntFractionAll", "id": 60}]
-#cmordicts = [{"confidence": "90", "relationship": "PCT_LANDUNIT(0)*PCT_NAT_PFT(1:2)", "_children": 
-#                [{"cmvar": "PCT_LANDUNIT", "longname": "% of each landunit on grid cell", "units": "%", "confidence": 100}, 
-#                 {"cmvar": "PCT_NAT_PFT", "longname": "% of each PFT on the natural vegetation (i.e., soil) landunit", "units": "%", "confidence": 100}], 
-#                 "frequency": "mon", "longname": "Percentage Cover by C3 Plant Functional Type", "units": "%", 
-#                 "mip": ["GMMIP", "VIACSAB", "PMIP", "RFMIP", "AerChemMIP", "FAFMIP", "LS3MIP", "CMIP", "VolMIP", "GeoMIP", "HighResMIP"], 
-#                "cmvar": "c3PftFrac", "id": 33}]
-
-#-cmordicts = [{"confidence": "90", "relationship": "PCT_LANDUNIT(0)*PCT_NAT_PFT(1:2)", "_children": 
-#-                [{"cmvar": "PCT_LANDUNIT", "longname": "% of each landunit on grid cell", "units": "%", "confidence": 100}, 
-#-                 {"cmvar": "PCT_NAT_PFT", "longname": "% of each PFT on the natural vegetation (i.e., soil) landunit", "units": "%", "confidence": 100}], 
-#-                 "frequency": "mon", "longname": "Percentage Cover by C3 Plant Functional Type", "units": "%", 
-#-                 "mip": ["GMMIP", "VIACSAB", "PMIP", "RFMIP", "AerChemMIP", "FAFMIP", "LS3MIP", "CMIP", "VolMIP", "GeoMIP", "HighResMIP"], 
-#-                "cmvar": "c3PftFrac", "id": 33}, {"confidence": "90", "relationship": "100-PCT_LANDUNIT(0:1)", "_children": [{"cmvar": "PCT_LANDUNIT", "longname": "% of each landunit on grid cell", "units": "%", "confidence": 100}], "frequency": "mon", "longname": "Percentage of Grid Cell That Is Land but neither Vegetation Covered nor Bare Soil", "units": "%", "mip": ["C4MIP", "GMMIP", "VIACSAB", "LUMIP", "PMIP", "RFMIP", "AerChemMIP", "FAFMIP", "CFMIP", "LS3MIP", "CMIP", "VolMIP", "GeoMIP", "HighResMIP"], "cmvar": "residualFrac", "id": 50}]
-
-#-cmordicts = [ {"confidence": "90", "relationship": "QRUNOFF+QSNWCPICE", "_children": [{"cmvar": "QRUNOFF", "longname": "total liquid runoff (does not include QSNWCPICE)", "units": "mm/s", "confidence": 100}, {"cmvar": "QSNWCPICE", "longname": "excess snowfall due to snow capping", "units": "mm/s", "confidence": 100}], "frequency": "mon", "longname": "Total Runoff", "units": "kg m-2 s-1", "mip"
-#-: ["GMMIP", "VIACSAB", "PAMIP", "RFMIP", "AerChemMIP", "CFMIP", "CMIP", "FAFMIP", "C4MIP", "DCPP", "VolMIP", "LUMIP", "PMIP", "GeoMIP", "LS3MIP", "HighResMIP"], "cmvar": "mrro", "id": 55}]
-#-
-#-cmordicts=[ {"confidence": "90", "relationship": "SOILLIQ+SOILICE", "_children": [{"cmvar": "SOILLIQ", "longname": "soil liquid water (vegetated landunits only)", "units": "kg/m2", "confidence": 100}, {"cmvar": "SOILICE", "longname": "soil ice (vegetated landunits only)", "units": "kg/m2", "confidence": 100}], "frequency": "mon", "longname": "Total Water Content of Soil Layer", "units": "kg m-2", "mip": ["C4MIP", "GMMIP", "VIACSAB", "LUMIP", "PMIP", "RFMIP", "AerChemMIP", "CFMIP", "GeoMIP", "LS3MIP", "CMIP", "VolMIP", "FAFMIP", "HighResMIP"], "cmvar": "mrsol", "id": 64}]
-
-
-
 # parallelism 
 nseg = max(int(len(cmordicts)/size), 1)
 nbgn = rank * nseg
@@ -412,6 +405,7 @@ nend = min(nbgn + nseg, len(cmordicts))
 
 
 print (rank, nbgn, nend, size, nseg)
+sys.exit()
 
 for cmordict in cmordicts[nbgn:nend]:
 
@@ -470,14 +464,12 @@ for cmordict in cmordicts[nbgn:nend]:
 
            
     elif len(cmordict['_children']) == 1:
-
        print(cmordict['_children'][0]["units"])
        if cmordict['_children'][0]["units"] == 'proportion' or cmordict['_children'][0]["units"] == 'unitless'  or \
           cmordict['_children'][0]["units"] == 'none':
           src_units = cf.Unit('1')
 
        elif cmordict['_children'][0]["units"] == 'mm/s':
-
           src_units = cf.Unit('kg m-2 s-1')
 
        else:
@@ -491,7 +483,7 @@ for cmordict in cmordicts[nbgn:nend]:
              else:
                 print ("cannot convert")
                
-
+       #check if the units is convertible after calculations
 
     print (tag_units, '---', src_units)
     if tag_units.is_convertible(src_units):
@@ -785,8 +777,25 @@ print (newvar.shape)
 
 
 
+if __name__ == "__main__":
+
+    import argparse
+    parser = argparse.ArgumentParser(description='Light-weighted cmorize tool')
 
 
+    parser.add_argument('integers', metavar='N', type=int, nargs='+',
+                               help='an integer for the accumulator')
+    parser.add_argument('--sum', dest='accumulate', action='store_const',
+                           const=sum, default=max,
+                           help='sum the integers (default: find the max)')
+
+    parser.add_argument('--sum', dest='accumulate', action='store_const',
+                           const=sum, default=max,
+                           help='sum the integers (default: find the max)')
+
+    parser.add_argument('--sum', dest='accumulate', action='store_const',
+                           const=sum, default=max,
+                           help='sum the integers (default: find the max)')
 #-toexclude = ['ExcludeVar1', 'ExcludeVar2']
 #-
 #-with netCDF4.Dataset("in.nc") as src, netCDF4.Dataset("out.nc", "w") as dst:
