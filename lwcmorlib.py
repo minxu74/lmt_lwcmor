@@ -339,51 +339,21 @@ class lwcmor():
        print (ReqVarAttrs)
    
 
-       #if ncdf_var.dtype == np.single:
-       #    ReqVarAttrs.setncattr('_FillValue'    , np.float32(1.e20))
-       #    ReqVarAttrs.setncattr('missing_value' , np.float32(1.e20))
-       #elif ncdf_var.dtype == np.double:
-       #    ncdf_var.setncattr('_FillValue'    , np.float64(1.e20))
-       #    ncdf_var.setncattr('missing_value' , np.float64(1.e20))
-       #elif ncdf_var.dtype == np.int16:
-       #    ncdf_var.setncattr('_FillValue'    , np.int16(-9999))
-       #    ncdf_var.setncattr('missing_value' , np.int16(-9999))
-
-
        # Now we can get the filename and directory name
 
        #<variable_id>_<table_id>_<experiment_id >_<source_id>_<member_id>_<grid_label>[_<time_range>].nc
-
+       #cmor file name cmfnam
        if ReqVarAttrs["mipTable"] == "fx":
-          self.cmfnam = "{}_".format(ReqVarAttrs["variable_id"]) +\
-                        "{}_".format(ReqVarAttrs["mipTable"]) +\
-                        "{}_".format(mipcv.ReqGblAttrs["source_id"]) +\
-                        "{}_".format(mipcv.ReqGblAttrs["experiment_id"]) +\
-                        "{}_".format(mipcv.ReqGblAttrs["variant_label"]) +\
-                        "{}.nc".format(mipcv.ReqGblAttrs["grid_label"]) 
-
+          self.cmfnam = "{}_{}_".format(ReqVarAttrs["variable_id"], ReqVarAttrs["mipTable"]) +\
+                        "{}_{}_".format(mipcv.ReqGblAttrs["source_id"], mipcv.ReqGblAttrs["experiment_id"]) +\
+                        "{}_{}.nc".format(mipcv.ReqGblAttrs["variant_label"], mipcv.ReqGblAttrs["grid_label"]) 
        else:
-          self.cmfnam = "{}_".format(ReqVarAttrs["variable_id"]) +\
-                        "{}_".format(ReqVarAttrs["mipTable"]) +\
-                        "{}_".format(mipcv.ReqGblAttrs["source_id"]) +\
-                        "{}_".format(mipcv.ReqGblAttrs["experiment_id"]) +\
-                        "{}_".format(mipcv.ReqGblAttrs["variant_label"]) +\
-                        "{}_".format(mipcv.ReqGblAttrs["grid_label"]) +\
+          self.cmfnam = "{}_{}_".format(ReqVarAttrs["variable_id"], ReqVarAttrs["mipTable"]) +\
+                        "{}_{}_".format(mipcv.ReqGblAttrs["source_id"], mipcv.ReqGblAttrs["experiment_id"]) +\
+                        "{}_{}_".format(mipcv.ReqGblAttrs["variant_label"], mipcv.ReqGblAttrs["grid_label"]) +\
                         "{}.nc".format(self.userinput["time_range"])
 
-
-       #Directory structure = <mip_era>/
-       #                        <activity_id>/
-       #                          <institution_id>/
-       #                            <source_id>/
-       #                              <experiment_id>/
-       #                                <member_id>/         <== variant_label
-       #                                  <table_id>/
-       #                                    <variable_id>/
-       #                                      <grid_label>/
-       #                                        <version>/
-
-       #"{}/".format(mipcv.ReqGblAttrs["activity_id"]) +\
+       #cmor directory name cmdnam
        self.cmdnam = "{}/".format("CMIP6") +\
                      "{}/".format(self.userinput["mip_name"]) +\
                      "{}/".format(mipcv.ReqGblAttrs["institution_id"]) +\
@@ -394,7 +364,6 @@ class lwcmor():
                      "{}/".format(mipcv.ReqGblAttrs["variable_id"]) +\
                      "{}/".format(mipcv.ReqGblAttrs["grid_label"]) +\
                      "{}/".format("v20200611")
-
        return
 
 
@@ -685,12 +654,6 @@ class lwcmor():
                       if dimkey:
                           if "type" in self.cmrvar['dimensions'][dimkey].keys():
                               DimVarType = self.__Map2npType(self.cmrvar['dimensions'][dimkey]['type'], False)
-                              #if self.cmrvar['dimensions'][dimkey]['type'] == 'real':
-                              #    DimVarType = np.float32
-                              #elif self.cmrvar['dimensions'][dimkey]['type'] == 'double':
-                              #    DimVarType = np.float64
-                              #elif self.cmrvar['dimensions'][dimkey]['type'] == 'int':
-                              #    DimVarType = np.int32
                           else:
                               DimVarType = np.float32
 
@@ -730,12 +693,6 @@ class lwcmor():
 
                                      print (np.array([v]).astype(DimVarType)[0], v)
                                      
-                                     #if self.cmrvar['dimensions'][dimkey]["type"] == "real":
-                                     #   self.cmrvar['dimensions'][dimkey][k] = np.float32(v)
-                                     #elif self.cmrvar['dimensions'][dimkey]["type"] == "double":
-                                     #   self.cmrvar['dimensions'][dimkey][k] = np.float64(v)
-                                     #elif self.cmrvar['dimensions'][dimkey]["type"] == "int":
-                                     #   self.cmrvar['dimensions'][dimkey][k] = np.int32(v)
                                  except:
                                      raise ValueError
                          #+mxu in order to pass cfchecker, need to remove type:double attributes
@@ -933,118 +890,3 @@ class lwcmor():
                                     "seaIce: MPAS-Seaice (MPAS-Seaicev6.0, same grid as ocean);"
                     setattr(fcmor, gk, e3sm_sourceline)
 
-
-
-# test code
-
-if __name__ == "__main__":
-
-   import subprocess
-   import datetime
-   import uuid
-
-   mod_name = 'E3SM'
-   exp_name = '1pctCO2-bgc'
-   mip_name = 'C4MIP'
-   ins_name = 'RUBISCO'
-   tab_name = 'Lmon'
-   rel_name = 'land'
-   
-   datadir="/global/cscratch1/sd/minxu/data/20191123.CO21PCTRAD_RUBISCO_CNPCTC20TR_OIBGC.I1900.ne30_oECv3.compy/rgr/atm/"
-   cmordir="/global/homes/m/minxu/scratch/data/mytest/"
-   
-   timeshift=1899
-
-   # areacella_fx_CESM2_esm-hist_r1i1p1f1_gn.nc
-
-   UserInput = {}
-   #UserInput["mip_name"             ] = "CMIP"
-   #UserInput["tab_name"             ] = "fx"
-   #UserInput["rel_name"             ] = "atmos"
-   UserInput["mip_name"             ] = "C4MIP"
-   UserInput["tab_name"             ] = "Lmon"
-   UserInput["rel_name"             ] = "land"
-   #UserInput["tab_name"             ] = "Amon"
-   #UserInput["rel_name"             ] = "atmos"
-   UserInput["mod_name"             ] = "E3SM"
-   UserInput["time_range"           ] = "000101-015012"
-   UserInput["ModelRltDir"          ] = "/global/cscratch1/sd/minxu/data/20191123.CO21PCTBGC_RUBISCO_CNPCTC20TR_OIBGC.I1900.ne30_oECv3.compy/rgr/"
-   UserInput["CmorRltDir"           ] = "/global/cfs/cdirs/m2467/prj_minxu/cmip6/"
-
-   UserInput["experiment_id"        ] = '1pctCO2-bgc'
-   UserInput["institution_id"       ] = 'RUBISCO'
-   UserInput["grid_label"           ] = "gr"
-   UserInput["nominal_resolution"   ] = "100 km"
-   UserInput["further_info_url"     ] = "https://bgc-feedbacks.org"
-   UserInput["creation_date"        ] = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
-   UserInput["source_component"     ] = ["atmos", "atmosChem", "land", "ocean", "ocnBgchem", "seaIce"]
-   UserInput["source_id"            ] = "E3SM-1-1"
-   UserInput["forcing_index"        ] = np.int32(1)
-   UserInput["initialization_index" ] = np.int32(1)
-   UserInput["physics_index"        ] = np.int32(1)
-   UserInput["realization_index"    ] = np.int32(1)
-   UserInput["variant_info"         ] = "p = 1, for CTC with CNP"
-   UserInput["branch_method"        ] = "50 yrs spinup on DOE Compy from the 969 yrs piControl spinup on NERSC Edison " \
-                                        "to account for the machine differences"
-   UserInput["branch_time_in_child" ] = 0.0
-   UserInput["branch_time_in_parent"] = 371935.0
-   UserInput["parent_time_units"    ] = "days since 0001-01-01"
-   # user the shell to get
-   myuuid = str(uuid.uuid4())
-   UserInput["tracking_id"          ] = "hdl:21.14100/" + myuuid
-   UserInput["calendar"             ] = "noleap"
-   UserInput["timeunits"            ] = "days since 0001-01-01 00:00:00"
-
-
-   # get the cmorjson version
-   jsonversion = subprocess.check_output("cd cmorjson && git describe --always", shell=True)
-
-   with open("cmorjson/jsonfiles/cmor/{}_{}_{}.json".format(UserInput["mip_name"], UserInput["tab_name"], UserInput["mod_name"])) as rdf:
-       cmor_json = json.load(rdf)
-   cmordicts = [ cm for cm in cmor_json["variables"] if int(cm["confidence"]) >= 90.0 ]
-   
-   
-   # get all variable definitons
-   
-   for jsnf in glob.glob("cmorjson/jsonfiles/{}/*".format(mod_name.lower())):
-       if "mon" in jsnf and UserInput["rel_name"] in jsnf:
-           print (jsnf)
-           with open (jsnf) as rdf:
-                modeljson = json.load(rdf)
-           compdicts = modeljson["variables"]
-   
-
-   fmiss = open("missingvars.txt", "w")
-
-   
-   for i, cmordict in enumerate(cmordicts):
-
-       #if i > 5:
-       #    break
-
-       if cmordict["cmvar"] != "gpp":
-           continue
-
-       lwc = lwcmor(cmordict, compdicts, UserInput)
-       lwc.UnitsConversion()
-       lwc.CmorvarCompute()
-
-       if len(lwc.missingvars) > 0:
-          fmiss.write(','.join(lwc.missingvars)+",")
-
-       variant_label = "r{}i{}p{}f{}".format(UserInput["realization_index"], UserInput["initialization_index"], UserInput["physics_index"], UserInput["forcing_index"])
-       optgblattrs={}
-       optgblattrs.update({"further_info_url":"https://furtherinfo.es-doc.org/CMIP6.{}.{}.{}.{}.{}".format(\
-                          UserInput["institution_id"],UserInput["mod_name"],UserInput["experiment_id"],'none', variant_label)})      
-       #CMIP6.NCAR.CESM2.1pctCO2-bgc.none.r1i1p1f1"
-       optgblattrs.update({"model_doi_url":"https://doi.org/10.11578/E3SM/dc.20180418.36"})
-       optgblattrs.update({"relationship":lwc.cmrvar["relationship"]})
-       optgblattrs.update({"sympyinput": lwc.cmrela})
-       optgblattrs.update({"CmorJsonVersion": jsonversion.strip()})
-       optgblattrs.update({"contact": "Forrest M. Hoffman <forrest@ornl.gov>"})
-
-       lwc.GetAttributes(optgblattrs, {})
-       lwc.Cmorization()
-       #print (lwc)
-       #print (lwc.cmfnam, lwc.cmdnam)
-    
