@@ -99,6 +99,9 @@ UserInput["parent_time_units"    ] = "no parent"
 UserInput["parent_variant_label" ] = "no parent"
 
 
+UserInput["data_version"         ] = "v20200826"
+
+
 
 # user the shell to get
 myuuid = str(uuid.uuid4())
@@ -140,8 +143,16 @@ for i, cmordict in enumerate(cmordicts):
     #if i > 5:
     #    break
 
-    #-if cmordict["cmvar"] != "rh":
-    #-    continue
+       #incVars = ["gpp", "tas", "areacella", "mrtws"]
+       #incVars = ["rsds", "rlds", "rsus", "rlus", "hfss", "hfls", "evspsbl", "mrro", "mrso", "mrtws", "tran", "evspsblsoi", "evspsblveg", "mrsos", "nbp", 
+       #           "gpp", "ra", "rh", "lai", "tas", "ps", "pr", "prsn", "snc", "snw", "snd", "tsl", "sftlf"]
+       incVars = ["mrsos" , "snw", "snd"]
+
+       #if cmordict["cmvar"] != "gpp" and cmordict["cmvar"] != "tas" and cmordict["cmvar"] != "areacella" and cmordict["cmvar"] != "mrtws":
+       #    continue
+
+       if cmordict["cmvar"] not in incVars:
+           continue
 
     try:
        lwc = lwcmor(cmordict, compdicts, UserInput)

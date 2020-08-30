@@ -363,7 +363,8 @@ class lwcmor():
                      "{}/".format(mipcv.ReqGblAttrs["table_id"]) +\
                      "{}/".format(mipcv.ReqGblAttrs["variable_id"]) +\
                      "{}/".format(mipcv.ReqGblAttrs["grid_label"]) +\
-                     "{}/".format("v20200611")
+                     "{}/".format(self.userinput["data_version"])
+                     #"{}/".format("v20200826")
        return
 
 
