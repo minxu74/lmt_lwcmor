@@ -167,7 +167,11 @@ class cmip6cv():
 
         self.ReqGblAttrs["license"] = self.dict_lic["license"][0]
         self.ReqGblAttrs["license"] = self.ReqGblAttrs["license"].replace("<Your Centre Name>", self.ReqGblAttrs["institution_id"])
-        self.ReqGblAttrs["license"] = self.ReqGblAttrs["license"].replace("<some URL maintained by modeling group>", UserInput["further_info_url"])
+        #self.ReqGblAttrs["license"] = self.ReqGblAttrs["license"].replace("<some URL maintained by modeling group>", UserInput["further_info_url"])
+        self.ReqGblAttrs["license"] = self.ReqGblAttrs["license"].replace("[ and at <some URL maintained by modeling group>].", ".")
+        #we choose sharealike licence
+        self.ReqGblAttrs["license"] = self.ReqGblAttrs["license"].replace("[NonCommercial-]", "")
+
 
 
         if UserInput["source_id"] in self.dict_sid["source_id"].keys():
