@@ -38,16 +38,16 @@ levgrnd_bnds[\$levgrnd,\$nbnd] = {
   28.249208450317400, 42.0989685058594 };
 EOF
 
-ncap2 -S depth.nco y.nc bounds.nc
-ncatted -a bounds,levgrnd,c,c,levgrnd_bnds bounds.nc
+ncap2 -S depth.nco y.nc $dirnfx/bounds.nc
+ncatted -a bounds,levgrnd,c,c,levgrnd_bnds $dirnfx/bounds.nc
 
 # remove bounds attributes
-ncatted -O -h -a ,lat_bnds,d,, bounds.nc
-ncatted -O -h -a ,lon_bnds,d,, bounds.nc
-ncatted -O -h -a ,levgrnd_bnds,d,, bounds.nc
+ncatted -O -h -a ,lat_bnds,d,, $dirnfx/bounds.nc
+ncatted -O -h -a ,lon_bnds,d,, $dirnfx/bounds.nc
+ncatted -O -h -a ,levgrnd_bnds,d,, $dirnfx/bounds.nc
 
 # remove the history record 
-ncatted -a history,global,o,c, bounds.nc
+ncatted -a history,global,o,c, $dirnfx/bounds.nc
 
 
 # cleanup

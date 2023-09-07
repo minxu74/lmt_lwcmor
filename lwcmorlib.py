@@ -130,6 +130,9 @@ class lwcmor():
        if "time2" in self.cmrvar["dimensions"] and "time" not in self.cmrvar["dimensions"]:
            self.cmrvar["dimensions"]["time"] = self.cmrvar["dimensions"]["time2"]
 
+       if "time1" in self.cmrvar["dimensions"] and "time" not in self.cmrvar["dimensions"]:
+           self.cmrvar["dimensions"]["time"] = self.cmrvar["dimensions"]["time1"]
+
        print (self.cmrvar["dimensions"]["shape"])
        if "time" in ','.join(self.cmrvar["dimensions"]["shape"]):
           self.cmrvar["dimensions"]["time"]["units"] = userinput["timeunits"]
@@ -217,7 +220,8 @@ class lwcmor():
               if 'C' in vr["units"]:
                  vr["units"] = vr["units"].replace('C','')
                  src_units.append(cf.Unit(vr["units"]))
-              elif 'N' in cmordict['_children'][0]['units']:
+              #xum seems a bugelif 'N' in cmordict['_children'][0]['units']:
+              elif 'N' in vr['units']:
                  vr["units"] = vr["units"].replace('N','')
                  src_units.append(cf.Unit(vr["units"]))
               else:
@@ -255,7 +259,18 @@ class lwcmor():
        if vr["units"] == "steradian":
            rlt_units = cf.Unit("m2")   # conversion is done by relationship
        #check if the  
-       tag_units = cf.Unit(self.cmrvar["attributes"]["units"])
+
+       if 'C ' in self.cmrvar["attributes"]["units"]:
+           tmpunits = self.cmrvar["attributes"]["units"].replace('C ', ' ')
+       else:
+           if 'N ' in self.cmrvar["attributes"]["units"]:
+               tmpunits = self.cmrvar["attributes"]["units"].replace('N ', ' ')
+           else:
+               tmpunits = self.cmrvar["attributes"]["units"]
+
+       print( 'C ' in tmpunits)
+       #tag_units = cf.Unit(self.cmrvar["attributes"]["units"])
+       tag_units = cf.Unit(tmpunits)
 
        print (tag_units, '---', rlt_units)
        if tag_units.is_convertible(rlt_units):
@@ -295,7 +310,7 @@ class lwcmor():
        DreqInput["table_id"             ] = self.cmrvar["attributes"]["miptable"]
        DreqInput["variable_id"          ] = self.cmrvar["cmvar"]
 
-       mipcv.GetGlobalAttributes(self.userinput, DreqInput)
+       #--xum disbale for climgrass mipcv.GetGlobalAttributes(self.userinput, DreqInput)
        #print (mipcv.ReqGblAttrs)
        self.GblAttrs = {**mipcv.ReqGblAttrs, **OptGblAttrs}
 
@@ -343,28 +358,38 @@ class lwcmor():
 
        #<variable_id>_<table_id>_<experiment_id >_<source_id>_<member_id>_<grid_label>[_<time_range>].nc
        #cmor file name cmfnam
-       if ReqVarAttrs["mipTable"] == "fx":
-          self.cmfnam = "{}_{}_".format(ReqVarAttrs["variable_id"], ReqVarAttrs["mipTable"]) +\
-                        "{}_{}_".format(mipcv.ReqGblAttrs["source_id"], mipcv.ReqGblAttrs["experiment_id"]) +\
-                        "{}_{}.nc".format(mipcv.ReqGblAttrs["variant_label"], mipcv.ReqGblAttrs["grid_label"]) 
-       else:
-          self.cmfnam = "{}_{}_".format(ReqVarAttrs["variable_id"], ReqVarAttrs["mipTable"]) +\
-                        "{}_{}_".format(mipcv.ReqGblAttrs["source_id"], mipcv.ReqGblAttrs["experiment_id"]) +\
-                        "{}_{}_".format(mipcv.ReqGblAttrs["variant_label"], mipcv.ReqGblAttrs["grid_label"]) +\
-                        "{}.nc".format(self.userinput["time_range"])
 
-       #cmor directory name cmdnam
-       self.cmdnam = "{}/".format("CMIP6") +\
-                     "{}/".format(self.userinput["mip_name"]) +\
-                     "{}/".format(mipcv.ReqGblAttrs["institution_id"]) +\
-                     "{}/".format(mipcv.ReqGblAttrs["source_id"]) +\
-                     "{}/".format(mipcv.ReqGblAttrs["experiment_id"]) +\
-                     "{}/".format(mipcv.ReqGblAttrs["variant_label"]) +\
-                     "{}/".format(mipcv.ReqGblAttrs["table_id"]) +\
-                     "{}/".format(mipcv.ReqGblAttrs["variable_id"]) +\
-                     "{}/".format(mipcv.ReqGblAttrs["grid_label"]) +\
-                     "{}/".format(self.userinput["data_version"])
-                     #"{}/".format("v20200826")
+       #+xum 
+
+       custom=True
+
+       if not custom:
+          if ReqVarAttrs["mipTable"] == "fx":
+             self.cmfnam = "{}_{}_".format(ReqVarAttrs["variable_id"], ReqVarAttrs["mipTable"]) +\
+                           "{}_{}_".format(mipcv.ReqGblAttrs["source_id"], mipcv.ReqGblAttrs["experiment_id"]) +\
+                           "{}_{}.nc".format(mipcv.ReqGblAttrs["variant_label"], mipcv.ReqGblAttrs["grid_label"]) 
+          else:
+             self.cmfnam = "{}_{}_".format(ReqVarAttrs["variable_id"], ReqVarAttrs["mipTable"]) +\
+                           "{}_{}_".format(mipcv.ReqGblAttrs["source_id"], mipcv.ReqGblAttrs["experiment_id"]) +\
+                           "{}_{}_".format(mipcv.ReqGblAttrs["variant_label"], mipcv.ReqGblAttrs["grid_label"]) +\
+                           "{}.nc".format(self.userinput["time_range"])
+
+          #cmor directory name cmdnam
+          self.cmdnam = "{}/".format("CMIP6") +\
+                        "{}/".format(self.userinput["mip_name"]) +\
+                        "{}/".format(mipcv.ReqGblAttrs["institution_id"]) +\
+                        "{}/".format(mipcv.ReqGblAttrs["source_id"]) +\
+                        "{}/".format(mipcv.ReqGblAttrs["experiment_id"]) +\
+                        "{}/".format(mipcv.ReqGblAttrs["variant_label"]) +\
+                        "{}/".format(mipcv.ReqGblAttrs["table_id"]) +\
+                        "{}/".format(mipcv.ReqGblAttrs["variable_id"]) +\
+                        "{}/".format(mipcv.ReqGblAttrs["grid_label"]) +\
+                        "{}/".format(self.userinput["data_version"])
+                        #"{}/".format("v20200826")
+       else:
+             self.cmfnam = "{}_{}_".format(ReqVarAttrs["variable_id"], ReqVarAttrs["mipTable"]) +\
+                           "{}.nc".format(self.userinput["time_range"])
+
        return
 
 
@@ -452,6 +477,10 @@ class lwcmor():
                            xlist.append(f.variables[sv.name][...])
                            self.vardimnm = f.variables[sv.name].dimensions
                            self.vardimno = f.variables[sv.name].shape
+                  else:
+                      print ("Add {} into the variable list".format(sv.name))
+                      print (fnabs, self.cmdmns)
+                      self.missingvars.append(sv.name)
 
           for dn in self.vardimnm:
               print ('dn', dn)
@@ -506,6 +535,7 @@ class lwcmor():
           for sv in self.syvars:
               fnabs = "{}/{}/{}_{}.nc".format(self.userinput["ModelRltDir"], self.cmrvar["attributes"]["miptable"], 
                       sv.name, self.userinput["time_range"].replace('-','_'))
+              #fnabs = "{}_{}.nc".format(sv.name, self.userinput["time_range"].replace('-','_'))
               if os.path.exists(fnabs):
                   with nc4.Dataset(fnabs, "r") as f:
                       if len(f.variables[sv.name].dimensions) >=4:
@@ -578,9 +608,17 @@ class lwcmor():
                  fname, self.userinput["time_range"].replace('-','_'))
         origvn = sv.name
 
-        if not os.path.isdir(self.userinput["CmorRltDir"] + "/" + self.cmdnam):
+        custom = True
+        if not custom and not os.path.isdir(self.userinput["CmorRltDir"] + "/" + self.cmdnam):
             os.system("mkdir -p " + self.userinput["CmorRltDir"] + "/" + self.cmdnam)
-        fncmr = self.userinput["CmorRltDir"] + "/" + self.cmdnam + "/" + self.cmfnam
+
+
+        custom=True
+
+        if not custom:
+           fncmr = self.userinput["CmorRltDir"] + "/" + self.cmdnam + "/" + self.cmfnam
+        else:
+           fncmr = self.userinput["CmorRltDir"] + "/" + self.cmfnam
 
         bnd_name = None
 
@@ -785,7 +823,13 @@ class lwcmor():
                       # copy variable attributes all at once via dictionary
 
             if 'nb' not in forig.dimensions and 'nbound' not in forig.dimensions and 'nbnd' not in forig.dimensions:
+
+                print ('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')
+                print (DimBnd)
+                print (fbnds.variables.keys())
                 for dimvnm in DimBnd.keys():
+
+                   print (DimBnd[dimvnm])
                    if DimBnd[dimvnm] in fbnds.variables.keys():
                       if "type" in self.cmrvar["dimensions"][DimKey[dimvnm]].keys():
                           DimVarType = self.__Map2npType(self.cmrvar["dimensions"][DimKey[dimvnm]]["type"], False)
