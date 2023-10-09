@@ -3,4 +3,4 @@
 	url = https://github.com/WCRP-CMIP/CMIP6_CVs.git
 [submodule "cmorjson"]
 	path = cmorjson
-	url = https://github.com/comclieco/cmorjson.git
+	url = https://github.com/minxu74/cmorjson.git

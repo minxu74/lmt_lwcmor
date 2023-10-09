@@ -125,7 +125,7 @@ class lwcmor():
 
 
        #overwite
-       print (self.cmrvar["dimensions"])
+       print (self.cmrvar["dimensions"]["shape"][1])
        print (self.cmrvar["cmvar"])
        if "time2" in self.cmrvar["dimensions"] and "time" not in self.cmrvar["dimensions"]:
            self.cmrvar["dimensions"]["time"] = self.cmrvar["dimensions"]["time2"]
@@ -169,16 +169,19 @@ class lwcmor():
 
         if CmorType == 'real':
             DimVarType = np.float32
-            Fill_Value = np.float32(1.0e20)
+            #Fill_Value = np.float32(1.0e20)
+            Fill_Value = np.float32(-9999.)
         elif CmorType == 'double':
             DimVarType = np.float64
-            Fill_Value = np.float64(1.0e20)
+            #Fill_Value = np.float64(1.0e20)
+            Fill_Value = np.float64(-9999.)
         elif CmorType == 'int':
             DimVarType = np.int32
             Fill_Value = np.int32(-9999)
         else:
             DimVarType = np.float32
-            Fill_Value = np.float32(1.0e20)
+            #Fill_Value = np.float32(1.0e20)
+            Fill_Value = np.float64(-9999.)
 
         return (DimVarType, Fill_Value) if ifv else DimVarType
 
@@ -624,6 +627,7 @@ class lwcmor():
 
         fnbnd = "{}/{}/{}".format(self.userinput["ModelRltDir"], self.cmrvar["attributes"]["miptable"],"bounds.nc")
 
+
         with nc4.Dataset(fnabs, "r") as forig, nc4.Dataset(fncmr, "w", **Cmip6NetcdfOpt) as fcmor, nc4.Dataset(fnbnd, "r") as fbnds:
             #create dimensions
             for name, dimension in forig.dimensions.items():
@@ -639,9 +643,12 @@ class lwcmor():
                     else:
                         dim_name = name
                     fcmor.createDimension(dim_name, (len(dimension) if not dimension.isunlimited() else None))
+
             if not bnd_name:
                bnd_name = "nbnd"  #default
                fcmor.createDimension(bnd_name, 2)
+
+           
 
             # copy all file data except for the excluded
             # extended dimensions
@@ -887,10 +894,19 @@ class lwcmor():
 
 
             else:
+
                 fcmor[self.cmrvar["cmvar"]][...] = self.src_units.convert(self.cmvval[...], self.tag_units)
 
             self.VarAttrs["missing_value"] = fillvalue
 
+            # per grid area to per land area
+            # min and xiaojuan decided not to divided by landfrac
+            #-if "m-2" or "m -2" in self.tag_units:
+            #-    lndfrc = nc4.Dataset("area_landfrac.nc","r")
+            #-    fcmor[self.cmrvar["cmvar"]][...] = fcmor[self.cmrvar["cmvar"]][...]/lndfrc['landfrac'][...]
+
+            #-    print ('normalize')
+            #-    setattr(fcmor, "fluxtoland", "True")
 
             # variable attributes
             external_variables_val = "none"

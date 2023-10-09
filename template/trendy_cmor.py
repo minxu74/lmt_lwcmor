@@ -41,10 +41,13 @@ else:
 
 exp_name = args.expname
 
-if not args.insname:
+
+
+if args.insname:
    ins_name = args.insname
 else:
    ins_name = 'RUBISCO'
+
 
 tab_name = args.tabname
 rel_name = args.relname
@@ -120,6 +123,8 @@ else:
        cmor_json = json.load(rdf)
 cmordicts = [ cm for cm in cmor_json["variables"] if int(cm["confidence"]) >= 90.0 ]
 
+print ('json', "cmorjson/jsonfiles/cmor/{}_{}_{}.json".format(UserInput["mip_name"], UserInput["tab_name"], UserInput["mod_name"]))
+
 if mip_name == "LS3MIP" or mip_name == "trendy2023":
     xrel_name = "land"
 else:
@@ -128,7 +133,7 @@ else:
 # get all variable definitons
 for jsnf in glob.glob("cmorjson/jsonfiles/{}/*".format(mod_name.lower())):
     if "mon" in jsnf and xrel_name in jsnf:
-        print (jsnf)
+        print (jsnf, 'xxx', xrel_name)
         with open (jsnf) as rdf:
              modeljson = json.load(rdf)
         compdicts = modeljson["variables"]
@@ -147,48 +152,60 @@ for i, cmordict in enumerate(cmordicts):
        #incVars = ["rsds", "rlds", "rsus", "rlus", "hfss", "hfls", "evspsbl", "mrro", "mrso", "mrtws", "tran", "evspsblsoi", "evspsblveg", "mrsos", "nbp", 
        #           "gpp", "ra", "rh", "lai", "tas", "ps", "pr", "prsn", "snc", "snw", "snd", "tsl", "sftlf"]
        #incVars = ["mrsos" , "snw", "snd"]
-       incVars = ["tas", "pr", "rsds", "mrso", "mrro", "evapotrans",
-                   "cVeg", "cLitter", "cSoil", "cProduct", 
-                   "gpp", "ra", "npp", "rh", "fFire", "fLuc", "nbp", 
-                   "landCoverFrac", "oceanCoverFrac", "burntArea", "lai",
-                   "cLeaf", "cWood", "cRoot", "cCwd", "cSoilpools", 
-                   "fVegLitter", "fLeafLitter", "fWoodLitter", 
-"fRootLittera", "fLitterSoil", "fVegSoil", "rhpool", "fAllocLeaf", 
-"fAllocWood", "fAllocRoot", "fFireCveg", "fFireLittera", "fFireCsoil", 
-"tsl", "msl", "evspsblveg"] 
+    #-incVars = [ "tas", "pr", "rsds", "mrso", "mrro", "evapotrans", "tran", "evspsblsoi", "evspsblveg",
+    #-            "cVeg", "cLitter", "cSoil", "cProduct", 
+    #-            "gpp", "ra", "npp", "rh", "fFire", "fLuc", "nbp", 
+    #-            "landCoverFrac", "oceanCoverFrac", "burntFractionAll", "lai",
+    #-            "cLeaf", "cWood", "cRoot", "cCwd", "cSoilpools", 
+    #-            "fVegLitter", "fLeafLitter", "fWoodLitter", 
+    #-            "fRootLittera", "fLitterSoil", "fVegSoil", "rhpool", "fAllocLeaf", 
+    #-            "fAllocWood", "fAllocRoot", "fFireCveg", "fFireLitter", "fFireCsoil", 
+    #-            "tsl", "msl", "fN2O", "fNloss", "fNnetmin", "fNup", "fNBF", "fNdep", "nProduct", "nlnorgSOIL", "nOrgSoil", "nLitter", "nRoot", "nWood", "nLeaf", "nVeg", "mrsol", 
+    #-            "fLeafLitter", "fRootLitter", "fNup", "fNdep", "nVeg", "nLitter", "nRoot", "nLeaf","cSoilPools", "cSoilFast", "cSoilMedium", "cSoilSlow"] 
+    #incVars = ["tas", "pr", "rsds"]
+    #incVars = ["fFire"]
+    #incVars = ["fLeafLitter", "fRootLitter", "fNup", "fNdep", "nVeg", "nLitter", "nRoot", "nLeaf"]
+    #incVars = ["burntFractionAll"]
+    #incVars = ["npp", "tsl"]
+    #incVars = ["cSoilPools", "cSoilFast", "cSoilMedium", "cSoilSlow"]
+    #incVars = ["sftlf", "areacella"]
+    incVars = ["landmask"]
+
 
 
        #if cmordict["cmvar"] != "gpp" and cmordict["cmvar"] != "tas" and cmordict["cmvar"] != "areacella" and cmordict["cmvar"] != "mrtws":
        #    continue
 
-       if cmordict["cmvar"] not in incVars:
-           continue
+    print ('deb', cmordict["cmvar"])
 
-    try:
-       lwc = lwcmor(cmordict, compdicts, UserInput)
-       lwc.UnitsConversion()
-       lwc.CmorvarCompute()
+    if cmordict["cmvar"] not in incVars:
+         continue
+
+    #try:
+    lwc = lwcmor(cmordict, compdicts, UserInput)
+    lwc.UnitsConversion()
+    lwc.CmorvarCompute()
 
 
-       if len(lwc.missingvars) > 0:
-          fmiss.write(','.join(lwc.missingvars)+",")
+    if len(lwc.missingvars) > 0:
+       fmiss.write(','.join(lwc.missingvars)+",")
 
-       variant_label = "r{}i{}p{}f{}".format(UserInput["realization_index"], UserInput["initialization_index"], UserInput["physics_index"], UserInput["forcing_index"])
-       optgblattrs={}
-       optgblattrs.update({"further_info_url":"https://furtherinfo.es-doc.org/CMIP6.{}.{}.{}.{}.{}".format(\
-                          UserInput["institution_id"],UserInput["source_id"],UserInput["experiment_id"],'none', variant_label)})
-       #CMIP6.NCAR.CESM2.1pctCO2-bgc.none.r1i1p1f1"
-       optgblattrs.update({"model_doi_url":"https://doi.org/10.11578/E3SM/dc.20180418.36"})
-       optgblattrs.update({"relationship":lwc.cmrvar["relationship"]})
-       optgblattrs.update({"sympyinput": lwc.cmrela})
-       optgblattrs.update({"CmorJsonVersion": jsonversion.strip()})
-       optgblattrs.update({"contact": "Forrest M. Hoffman <forrest@ornl.gov>"})
+    variant_label = "r{}i{}p{}f{}".format(UserInput["realization_index"], UserInput["initialization_index"], UserInput["physics_index"], UserInput["forcing_index"])
+    optgblattrs={}
+    optgblattrs.update({"further_info_url":"https://furtherinfo.es-doc.org/CMIP6.{}.{}.{}.{}.{}".format(\
+                       UserInput["institution_id"],UserInput["source_id"],UserInput["experiment_id"],'none', variant_label)})
+    #CMIP6.NCAR.CESM2.1pctCO2-bgc.none.r1i1p1f1"
+    optgblattrs.update({"model_doi_url":"https://dx.doi.org/10.11578/E3SM/dc.20230110.5"})
+    optgblattrs.update({"relationship":lwc.cmrvar["relationship"]})
+    optgblattrs.update({"sympyinput": lwc.cmrela})
+    optgblattrs.update({"CmorJsonVersion": jsonversion.strip()})
+    optgblattrs.update({"contact": "Xiaojuan Yang <yangx2@ornl.gov>"})
 
-       lwc.GetAttributes(optgblattrs, {})
-       lwc.Cmorization()
-       #print (lwc)
-       #print (lwc.cmfnam, lwc.cmdnam)
-    except:
-       print ('Error in', cmordict["cmvar"], sys.exc_info()[0])
+    lwc.GetAttributes(optgblattrs, {})
+    lwc.Cmorization()
+    #-print (lwc)
+    #-print (lwc.cmfnam, lwc.cmdnam)
+    #-except:
+    #-   print ('Error in', cmordict["cmvar"], sys.exc_info()[0])
 
 
